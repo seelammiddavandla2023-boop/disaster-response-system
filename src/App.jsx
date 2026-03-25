@@ -1,9 +1,61 @@
+/* eslint-disable */
 import { useState, useEffect, useRef, useCallback } from "react";
-import {
-  LineChart, Line, AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, PieChart, Pie, Cell
-} from "recharts";
+import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { initializeApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, onAuthStateChanged } from "firebase/auth";
+import emailjs from "@emailjs/browser";
+
+// Firebase + EmailJS config
+const firebaseApp = initializeApp({
+  apiKey: "AIzaSyBaxraXzc_tdgQSu-uCEiRV3U8tKGBTTFM",
+  authDomain: "disaster-response-system-6ae82.firebaseapp.com",
+  projectId: "disaster-response-system-6ae82",
+  storageBucket: "disaster-response-system-6ae82.firebasestorage.app",
+  messagingSenderId: "655327195433",
+  appId: "1:655327195433:web:6d79cbeee4ee215b660738",
+});
+const auth = getAuth(firebaseApp);
+const EJ_SVC = "service_m61oedi";
+const EJ_TPL = "zgzxxpy";
+const EJ_KEY = "HYo2Qm6SBeS60_i2_";
+emailjs.init(EJ_KEY);
+
+// India states and cities
+const INDIA = {
+  "Andhra Pradesh": ["Visakhapatnam","Vijayawada","Guntur","Tirupati","Kurnool","Nellore"],
+  "Assam": ["Guwahati","Dibrugarh","Silchar","Jorhat","Tezpur"],
+  "Bihar": ["Patna","Gaya","Bhagalpur","Muzaffarpur","Darbhanga"],
+  "Chhattisgarh": ["Raipur","Bilaspur","Durg","Bhilai","Korba"],
+  "Delhi": ["New Delhi","Dwarka","Rohini","Saket","Noida","Gurugram"],
+  "Goa": ["Panaji","Margao","Vasco da Gama","Mapusa"],
+  "Gujarat": ["Ahmedabad","Surat","Vadodara","Rajkot","Gandhinagar","Bhavnagar"],
+  "Haryana": ["Gurugram","Faridabad","Hisar","Ambala","Karnal","Panipat"],
+  "Himachal Pradesh": ["Shimla","Manali","Dharamshala","Kullu","Solan"],
+  "Jammu & Kashmir": ["Srinagar","Jammu","Leh","Anantnag","Baramulla"],
+  "Jharkhand": ["Ranchi","Jamshedpur","Dhanbad","Bokaro","Hazaribagh"],
+  "Karnataka": ["Bengaluru","Mysuru","Hubli","Mangaluru","Belagavi","Tumkur"],
+  "Kerala": ["Thiruvananthapuram","Kochi","Kozhikode","Thrissur","Kannur","Kollam"],
+  "Madhya Pradesh": ["Bhopal","Indore","Jabalpur","Gwalior","Ujjain","Sagar"],
+  "Maharashtra": ["Mumbai","Pune","Nagpur","Nashik","Aurangabad","Thane","Solapur"],
+  "Manipur": ["Imphal","Thoubal","Bishnupur","Churachandpur"],
+  "Meghalaya": ["Shillong","Tura","Jowai"],
+  "Mizoram": ["Aizawl","Lunglei","Champhai"],
+  "Nagaland": ["Kohima","Dimapur","Mokokchung"],
+  "Odisha": ["Bhubaneswar","Cuttack","Rourkela","Puri","Sambalpur","Berhampur"],
+  "Punjab": ["Amritsar","Ludhiana","Jalandhar","Patiala","Chandigarh","Mohali"],
+  "Rajasthan": ["Jaipur","Jodhpur","Udaipur","Kota","Ajmer","Jaisalmer","Bikaner"],
+  "Sikkim": ["Gangtok","Namchi","Mangan"],
+  "Tamil Nadu": ["Chennai","Coimbatore","Madurai","Salem","Trichy","Tirunelveli","Vellore","Erode"],
+  "Telangana": ["Hyderabad","Warangal","Nizamabad","Karimnagar","Khammam"],
+  "Tripura": ["Agartala","Udaipur","Dharmanagar"],
+  "Uttar Pradesh": ["Lucknow","Kanpur","Agra","Varanasi","Allahabad","Meerut","Noida","Ghaziabad"],
+  "Uttarakhand": ["Dehradun","Haridwar","Rishikesh","Nainital","Mussoorie","Roorkee"],
+  "West Bengal": ["Kolkata","Howrah","Siliguri","Asansol","Darjeeling","Durgapur"],
+};
+
+// Profile helpers (localStorage)
+const saveProfile = (uid, data) => localStorage.setItem(`dms_${uid}`, JSON.stringify(data));
+const loadProfile = (uid) => { try { return JSON.parse(localStorage.getItem(`dms_${uid}`)) || {}; } catch { return {}; } };
 
 // ─── CONSTANTS & CONFIG ────────────────────────────────────────────────────
 const THRESHOLDS = {
@@ -284,8 +336,30 @@ input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2p
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--ac);cursor:pointer}
 select.fi2{cursor:pointer}
 option{background:var(--bg2)}
-`;
 
+/* ── REGISTER ── */
+.rbx{background:var(--bg2);border:1px solid var(--bdr);border-radius:16px;padding:28px 26px;width:500px;position:relative;z-index:1;max-height:92vh;overflow-y:auto}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.lsuc{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.28);border-radius:6px;padding:7px 11px;font-size:12px;color:#4ade80;margin-bottom:13px}
+.lswitch{text-align:center;margin-top:14px;font-size:12px;color:var(--tx3)}
+.lswitch span{color:var(--ac);cursor:pointer;font-weight:600}
+.lswitch span:hover{text-decoration:underline}
+.role-sel{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:5px}
+.role-opt{padding:9px 7px;border-radius:7px;border:1px solid var(--bdr);cursor:pointer;transition:all .2s;text-align:center;background:var(--bg3)}
+.role-opt .ri2{font-size:18px;margin-bottom:3px}
+.role-opt .rl2{font-size:10.5px;font-weight:600;color:var(--tx3)}
+.role-opt.selected{border-color:var(--ac);background:rgba(0,200,255,.08)}
+.role-opt.selected .rl2{color:var(--ac)}
+.loc-btns{display:flex;gap:7px;margin-top:5px}
+.loc-btn{flex:1;padding:8px 10px;border-radius:7px;border:1px solid var(--bdr);background:var(--bg3);color:var(--tx2);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;font-family:'Rajdhani',sans-serif;letter-spacing:.5px}
+.loc-btn:hover{border-color:var(--ac2);color:var(--ac)}
+.loc-btn.active{border-color:var(--ac);color:var(--ac);background:rgba(0,200,255,.1)}
+.loc-info{background:var(--bg4);border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:7px 11px;font-size:11px;color:var(--gn);margin-top:7px;font-family:'Space Mono',monospace}
+.toast{position:fixed;top:16px;right:16px;background:var(--bg2);border:1px solid var(--gn);border-radius:9px;padding:11px 16px;z-index:9999;font-size:12px;color:var(--gn);max-width:300px;animation:si .3s ease;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+.toast.warn{border-color:var(--rd);color:var(--rd)}
+.lbtn:disabled{opacity:.5;cursor:not-allowed}
+
+`;
 // ─── SMALL COMPONENTS ──────────────────────────────────────────────────────
 
 function Metric({ label, value, unit, color, icon, sub }) {
@@ -394,7 +468,7 @@ function Map({ latestMap, activeAlerts }) {
         ))}
       </div>
       <div style={{ position: "absolute", top: 9, left: 9, fontSize: 9.5, color: "var(--tx3)", fontFamily: "Space Mono, monospace" }}>
-        REGION: Chennai Metro · {SENSOR_NODES.length} Nodes
+        REGION: India · {SENSOR_NODES.length} Nodes
       </div>
     </div>
   );
@@ -787,17 +861,16 @@ function AdminPage({ user, alerts, sensorReadings, systemLogs }) {
       {tab === "users" && (
         <div className="card">
           <div className="ch"><div className="ct">👥 User Management</div></div>
-          {USERS.map(u => (
-            <div key={u.id} className="utr">
-              <div className="ua">{u.name[0]}</div>
+          <div className="utr">
+              <div className="ua">{user.name ? user.name[0].toUpperCase() : "U"}</div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{u.name}</div>
-                <div style={{ fontSize: 11, color: "var(--tx3)" }}>{u.email}</div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{user.name || "User"}</div>
+                <div style={{ fontSize: 11, color: "var(--tx3)" }}>{user.email}</div>
+                {user.location && <div style={{ fontSize: 10, color: "var(--tx3)", marginTop: 2 }}>📍 {user.location}</div>}
               </div>
-              <span className="rbdg Admin" style={{ background: u.role === "Admin" ? "rgba(99,102,241,.2)" : u.role === "Emergency Authority" ? "rgba(239,68,68,.18)" : "rgba(34,197,94,.13)", color: u.role === "Admin" ? "#a5b4fc" : u.role === "Emergency Authority" ? "#ff6b6b" : "#4ade80" }}>{u.role}</span>
+              <span className="rbdg" style={{ background: user.role === "Admin" ? "rgba(99,102,241,.2)" : user.role === "Emergency Authority" ? "rgba(239,68,68,.18)" : "rgba(34,197,94,.13)", color: user.role === "Admin" ? "#a5b4fc" : user.role === "Emergency Authority" ? "#ff6b6b" : "#4ade80" }}>{user.role}</span>
               <span style={{ fontSize: 10, color: "#22c55e", marginLeft: 11 }}>● Active</span>
             </div>
-          ))}
         </div>
       )}
       {tab === "nodes" && (
@@ -914,14 +987,134 @@ function HomePage({ simulateEvent }) {
   );
 }
 
+
+// ─── LOCATION PICKER ─────────────────────────────────────────────────────────
+function LocationPicker({ location, onChange }) {
+  const [mode, setMode] = useState("manual");
+  const [gpsStatus, setGpsStatus] = useState("");
+  const [state, setState] = useState(location?.state || "Tamil Nadu");
+  const [city, setCity] = useState(location?.city || "Chennai");
+
+  const detectGPS = () => {
+    setGpsStatus("Detecting your location...");
+    if (!navigator.geolocation) { setGpsStatus("GPS not supported on this device"); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setGpsStatus("GPS: " + latitude.toFixed(4) + ", " + longitude.toFixed(4));
+        onChange({ method: "gps", lat: latitude, lng: longitude, state: "GPS Detected", city: latitude.toFixed(2) + ", " + longitude.toFixed(2) });
+      },
+      () => { setGpsStatus("GPS denied — please use manual selection"); setMode("manual"); }
+    );
+  };
+
+  useEffect(() => { if (mode === "manual") onChange({ method: "manual", state, city }); }, [state, city, mode]);
+
+  const cities = INDIA[state] || [];
+  return (
+    <div>
+      <div className="loc-btns">
+        <button type="button" className={"loc-btn" + (mode === "gps" ? " active" : "")} onClick={() => { setMode("gps"); detectGPS(); }}>📍 Auto GPS</button>
+        <button type="button" className={"loc-btn" + (mode === "manual" ? " active" : "")} onClick={() => setMode("manual")}>🗺️ Select Manually</button>
+      </div>
+      {mode === "gps" && gpsStatus && <div className="loc-info">{gpsStatus}</div>}
+      {mode === "manual" && (
+        <div className="frow" style={{ marginTop: 7 }}>
+          <div>
+            <label className="fl">STATE</label>
+            <select className="fi2" value={state} onChange={e => { setState(e.target.value); setCity((INDIA[e.target.value] || [""])[0]); }}>
+              {Object.keys(INDIA).sort().map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="fl">CITY</label>
+            <select className="fi2" value={city} onChange={e => setCity(e.target.value)}>
+              {cities.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── REGISTER ────────────────────────────────────────────────────────────────
+function Register({ onSwitch }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [pwd, setPwd] = useState("");
+  const [pwd2, setPwd2] = useState("");
+  const [role, setRole] = useState("Public Viewer");
+  const [location, setLocation] = useState({ method: "manual", state: "Tamil Nadu", city: "Chennai" });
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const go = async () => {
+    setErr("");
+    if (!name.trim()) return setErr("Please enter your full name.");
+    if (!email.trim()) return setErr("Please enter your email.");
+    if (pwd.length < 6) return setErr("Password must be at least 6 characters.");
+    if (pwd !== pwd2) return setErr("Passwords do not match.");
+    setLoading(true);
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, pwd);
+      await updateProfile(cred.user, { displayName: name });
+      const locStr = location.method === "gps" ? "GPS: " + location.city : location.city + ", " + location.state;
+      saveProfile(cred.user.uid, { name, role, state: location.state || "India", city: location.city || "", location: locStr });
+    } catch (e) {
+      setErr(e.message.replace("Firebase: ", "").replace(/\(auth.*\)/, "").trim());
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="lsc">
+      <div className="lbg" /><div className="lgr" />
+      <div className="rbx">
+        <div className="llo">
+          <div className="lli">🛡️</div>
+          <div className="lt">Create Account</div>
+          <div className="ls">DisasterMS — Fog–Edge Framework v2.1</div>
+        </div>
+        {err && <div className="lerr">⚠️ {err}</div>}
+        <div className="fg"><label className="fl">FULL NAME</label><input className="fi2" placeholder="Enter your full name" value={name} onChange={e => setName(e.target.value)} /></div>
+        <div className="fg"><label className="fl">EMAIL ADDRESS</label><input className="fi2" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} /></div>
+        <div className="frow">
+          <div className="fg"><label className="fl">PASSWORD</label><input className="fi2" type="password" placeholder="Min. 6 characters" value={pwd} onChange={e => setPwd(e.target.value)} /></div>
+          <div className="fg"><label className="fl">CONFIRM PASSWORD</label><input className="fi2" type="password" placeholder="Repeat password" value={pwd2} onChange={e => setPwd2(e.target.value)} /></div>
+        </div>
+        <div className="fg">
+          <label className="fl">ROLE</label>
+          <div className="role-sel">
+            {[{r:"Admin",i:"⚙️"},{r:"Emergency Authority",i:"🚨"},{r:"Public Viewer",i:"👁️"}].map(({r,i}) => (
+              <div key={r} className={"role-opt" + (role === r ? " selected" : "")} onClick={() => setRole(r)}>
+                <div className="ri2">{i}</div>
+                <div className="rl2">{r}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="fg">
+          <label className="fl">LOCATION (INDIA)</label>
+          <LocationPicker location={location} onChange={setLocation} />
+        </div>
+        <button className="lbtn" onClick={go} disabled={loading}>{loading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT →"}</button>
+        <div className="lswitch">Already have an account? <span onClick={onSwitch}>Sign In</span></div>
+      </div>
+    </div>
+  );
+}
+
 // ─── LOGIN ──────────────────────────────────────────────────────────────────
-function Login({ onLogin }) {
+function Login({ onSwitch }) {
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [err, setErr] = useState("");
-  const go = () => {
-    const u = USERS.find(x => x.email === email && x.password === pwd);
-    u ? onLogin(u) : setErr("Invalid credentials.");
+  const [loading, setLoading] = useState(false);
+  const go = async () => {
+    setErr(""); setLoading(true);
+    try { await signInWithEmailAndPassword(auth, email, pwd); }
+    catch (e) { setErr("Invalid email or password. Please try again."); setLoading(false); }
   };
   return (
     <div className="lsc">
@@ -929,13 +1122,10 @@ function Login({ onLogin }) {
       <div className="lbx">
         <div className="llo"><div className="lli">🛡️</div><div className="lt">DisasterMS</div><div className="ls">Fog–Edge Disaster Response Framework v2.1</div></div>
         {err && <div className="lerr">⚠️ {err}</div>}
-        <div className="fg"><label className="fl">EMAIL</label><input className="fi2" type="email" placeholder="user@disasterms.io" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && go()} /></div>
+        <div className="fg"><label className="fl">EMAIL</label><input className="fi2" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && go()} /></div>
         <div className="fg"><label className="fl">PASSWORD</label><input className="fi2" type="password" placeholder="••••••••" value={pwd} onChange={e => setPwd(e.target.value)} onKeyDown={e => e.key === "Enter" && go()} /></div>
-        <button className="lbtn" onClick={go}>AUTHENTICATE →</button>
-        <div className="ql">
-          <div className="qtl">— Quick Access —</div>
-          <div className="qbs">{USERS.map(u => <div key={u.id} className="qb" onClick={() => onLogin(u)}><span>{u.name}</span><span className="qr">{u.role}</span></div>)}</div>
-        </div>
+        <button className="lbtn" onClick={go} disabled={loading}>{loading ? "AUTHENTICATING..." : "AUTHENTICATE →"}</button>
+        <div className="lswitch">No account yet? <span onClick={onSwitch}>Register here</span></div>
       </div>
     </div>
   );
@@ -943,7 +1133,9 @@ function Login({ onLogin }) {
 
 // ─── ROOT ───────────────────────────────────────────────────────────────────
 export default function App() {
-  const [user, setUser] = useState(null);
+  const [authUser, setAuthUser] = useState(undefined);
+  const [profile, setProfile] = useState({});
+  const [showRegister, setShowRegister] = useState(false);
   const [page, setPage] = useState("home");
   const [readings, setReadings] = useState([]);
   const [alerts, setAlerts] = useState([]);
@@ -951,18 +1143,31 @@ export default function App() {
   const [logs, setLogs] = useState([]);
   const [cloudOff, setCloudOff] = useState(false);
   const [now, setNow] = useState(ts());
+  const [toast, setToast] = useState(null);
   const simRef = useRef(null);
   const tick = useRef(0);
+  const emailCooldown = useRef({});
 
+  const showToast = useCallback((msg, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast(null), 4000); }, []);
   const log = useCallback((level, msg) => setLogs(p => [...p.slice(-200), { time: ts(), level, msg }]), []);
 
-  // Clock
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      if (u) {
+        const prof = loadProfile(u.uid);
+        setProfile({ name: u.displayName || prof.name || "User", email: u.email, role: prof.role || "Public Viewer", location: prof.location || "India", state: prof.state || "", city: prof.city || "", uid: u.uid });
+        setAuthUser(u);
+      } else { setAuthUser(null); setProfile({}); }
+    });
+    return unsub;
+  }, []);
+
   useEffect(() => { const t = setInterval(() => setNow(ts()), 1000); return () => clearInterval(t); }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!authUser) return;
     log("OK", "System initialized. IoT simulation running.");
-    log("INFO", `Authenticated: ${user.name} (${user.role})`);
+    log("INFO", "Authenticated: " + profile.name + " (" + profile.role + ")");
     const iv = setInterval(() => {
       tick.current++;
       const ev = simRef.current; if (ev) simRef.current = null;
@@ -972,50 +1177,82 @@ export default function App() {
       const newA = detectAlerts(r).map(a => ({ ...a, tier: lt.tier }));
       setReadings(p => [...p.slice(-240), r]);
       setLatHist(p => [...p.slice(-120), { t: ts(), network: r.networkDelay, processing: r.processingDelay, total: r.networkDelay + r.processingDelay, edge: rand(5, 14), fog: rand(16, 49) }]);
-      if (newA.length) { setAlerts(p => [...newA, ...p].slice(0, 500)); newA.forEach(a => log(a.severity === "Critical" ? "CRIT" : "WARN", `${a.type} [${a.severity}] ${a.nodeId} · ${a.sensor}=${a.value.toFixed(1)}`)); }
-      else if (tick.current % 6 === 0) log("INFO", `${nodeId}: all normal. ${lt.tier} @ ${lt.latency.toFixed(1)}ms`);
+      if (newA.length) {
+        setAlerts(p => [...newA, ...p].slice(0, 500));
+        newA.forEach(a => {
+          log(a.severity === "Critical" ? "CRIT" : "WARN", a.type + " [" + a.severity + "] " + a.nodeId + " · " + a.sensor + "=" + a.value.toFixed(1));
+          if (a.severity === "Critical" && authUser?.email) {
+            const key = a.type;
+            const now2 = Date.now();
+            if (!emailCooldown.current[key] || now2 - emailCooldown.current[key] > 120000) {
+              emailCooldown.current[key] = now2;
+              emailjs.send(EJ_SVC, EJ_TPL, { to_email: authUser.email, to_name: profile.name || "User", alert_type: a.type, severity: a.severity, location: profile.location || "India", sensor: a.sensor, value: a.value.toFixed(2), time: a.time })
+                .then(() => { showToast("📧 Alert email sent to " + authUser.email); log("OK", "Email sent → " + authUser.email + " (" + a.type + ")"); })
+                .catch(() => log("WARN", "Email send failed — check EmailJS config"));
+            }
+          }
+        });
+      } else if (tick.current % 6 === 0) log("INFO", nodeId + ": all normal. " + lt.tier + " @ " + lt.latency.toFixed(1) + "ms");
       if (tick.current % 22 === 0) { const off = Math.random() < 0.1; setCloudOff(off); if (off) log("WARN", "Cloud layer offline — edge fallback active."); }
     }, 2000);
     return () => clearInterval(iv);
-  }, [user, log]);
+  }, [authUser, log, showToast, profile]);
 
-  const simulate = useCallback((type) => { simRef.current = type; log("CRIT", `SIM: ${type.toUpperCase()} event injected into pipeline.`); }, [log]);
+  const simulate = useCallback((type) => { simRef.current = type; log("CRIT", "SIM: " + type.toUpperCase() + " event injected into pipeline."); }, [log]);
   const critN = alerts.filter(a => a.severity === "Critical").length;
+  const handleLogout = () => { signOut(auth); setAlerts([]); setReadings([]); setLatHist([]); setLogs([]); tick.current = 0; };
 
-  if (!user) return <><style>{CSS}</style><Login onLogin={u => { setUser(u); setPage("home"); }} /></>;
+  if (authUser === undefined) return (
+    <><style>{CSS}</style>
+    <div style={{ minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center" }}>
+      <div style={{ textAlign:"center" }}><div style={{ fontSize:40,marginBottom:14 }}>🛡️</div><div style={{ fontFamily:"Rajdhani,sans-serif",fontSize:16,color:"var(--tx3)" }}>Loading DisasterMS...</div></div>
+    </div></>
+  );
 
-  const titles = { home: "System Overview", dashboard: "Live Dashboard", sensors: "Sensor Monitoring", latency: "Latency Analytics", alerts: "Alert Center", admin: "Admin Panel" };
+  if (!authUser) return (
+    <><style>{CSS}</style>
+    {showRegister ? <Register onSwitch={() => setShowRegister(false)} /> : <Login onSwitch={() => setShowRegister(true)} />}
+    </>
+  );
+
+  const user = profile;
+  const titles = { home:"System Overview",dashboard:"Live Dashboard",sensors:"Sensor Monitoring",latency:"Latency Analytics",alerts:"Alert Center",admin:"Admin Panel" };
   const NAV = [
-    { id: "home", l: "Home", i: "🏠" }, { id: "dashboard", l: "Dashboard", i: "📊" },
-    { id: "sensors", l: "Sensor Monitor", i: "📡" }, { id: "latency", l: "Latency Analytics", i: "⚡" },
-    { id: "alerts", l: "Alert Center", i: "🚨", badge: critN || null }, { id: "admin", l: "Admin Panel", i: "⚙️" },
+    {id:"home",l:"Home",i:"🏠"},{id:"dashboard",l:"Dashboard",i:"📊"},
+    {id:"sensors",l:"Sensor Monitor",i:"📡"},{id:"latency",l:"Latency Analytics",i:"⚡"},
+    {id:"alerts",l:"Alert Center",i:"🚨",badge:critN||null},{id:"admin",l:"Admin Panel",i:"⚙️"},
   ];
 
   return (
     <>
       <style>{CSS}</style>
+      {toast && <div className={"toast" + (toast.type === "warn" ? " warn" : "")}>{toast.msg}</div>}
       <div className="app">
         <nav className="sidebar">
-          <div className="sb-logo">
-            <div className="sb-icon">🛡️</div>
-            <div className="sb-txt">DisasterMS<span>Fog–Edge Framework v2.1</span></div>
-          </div>
+          <div className="sb-logo"><div className="sb-icon">🛡️</div><div className="sb-txt">DisasterMS<span>Fog–Edge Framework v2.1</span></div></div>
           <div className="nav">
             <div className="nav-sec">
               <div className="nav-lbl">Navigation</div>
               {NAV.map(n => (
-                <div key={n.id} className={`nav-item ${page === n.id ? "active" : ""}`} onClick={() => setPage(n.id)}>
+                <div key={n.id} className={"nav-item" + (page === n.id ? " active" : "")} onClick={() => setPage(n.id)}>
                   <span className="ic">{n.i}</span>{n.l}
                   {n.badge ? <span className="nav-bdg">{n.badge}</span> : null}
                 </div>
               ))}
             </div>
+            {user.city && (
+              <div className="nav-sec">
+                <div className="nav-lbl">My Location</div>
+                <div style={{ padding:"5px 9px",fontSize:10.5,color:"var(--tx3)",fontFamily:"Space Mono,monospace" }}>📍 {user.city}</div>
+                {user.state && <div style={{ padding:"0 9px 5px",fontSize:10,color:"var(--tx3)" }}>{user.state}, India</div>}
+              </div>
+            )}
           </div>
           <div className="sb-foot">
             <div className="uc">
-              <div className="ua">{user.name[0]}</div>
+              <div className="ua">{(user.name||"U")[0].toUpperCase()}</div>
               <div className="ui"><div className="un">{user.name}</div><div className="ur">{user.role}</div></div>
-              <button className="lob" onClick={() => setUser(null)} title="Logout">↩</button>
+              <button className="lob" onClick={handleLogout} title="Logout">↩</button>
             </div>
           </div>
         </nav>
@@ -1027,7 +1264,7 @@ export default function App() {
               <button className="sbtn fl" onClick={() => simulate("flood")}>🌊 Flood</button>
               <button className="sbtn eq" onClick={() => simulate("earthquake")}>🌍 Quake</button>
             </div>
-            <div className={`sdot ${cloudOff ? "red" : alerts.some(a => a.severity === "Critical") ? "am" : ""}`} />
+            <div className={"sdot" + (cloudOff ? " red" : alerts.some(a => a.severity === "Critical") ? " am" : "")} />
             <div className="ttime">{now}</div>
           </div>
           <div className="content">
