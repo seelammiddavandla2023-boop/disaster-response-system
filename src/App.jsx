@@ -1,23 +1,28 @@
 /* eslint-disable */
 import { useState, useEffect, useRef, useCallback } from "react";
-import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, onAuthStateChanged } from "firebase/auth";
+import {
+  AreaChart, Area, BarChart, Bar, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, PieChart, Pie, Cell
+} from "recharts";
+
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  onAuthStateChanged
+} from "firebase/auth";
+
+import { auth } from "./firebase";   // ✅ IMPORTANT (use external config)
 import emailjs from "@emailjs/browser";
 
-// Firebase + EmailJS config
-const firebaseApp = initializeApp({
-  apiKey: "AIzaSyBaxraXzc_tdgQSu-uCEiRV3U8tKGBTTFM",
-  authDomain: "disaster-response-system-6ae82.firebaseapp.com",
-  projectId: "disaster-response-system-6ae82",
-  storageBucket: "disaster-response-system-6ae82.firebasestorage.app",
-  messagingSenderId: "655327195433",
-  appId: "1:655327195433:web:6d79cbeee4ee215b660738",
-});
-const auth = getAuth(firebaseApp);
-const EJ_SVC = "service_m61oedi";
-const EJ_TPL = "zgzxxpy";
-const EJ_KEY = "HYo2Qm6SBeS60_i2_";
+// ✅ Use environment variables (safe for deployment)
+const EJ_SVC = process.env.REACT_APP_EMAILJS_SERVICE;
+const EJ_TPL = process.env.REACT_APP_EMAILJS_TEMPLATE;
+const EJ_KEY = process.env.REACT_APP_EMAILJS_PUBLIC_KEY;
+
+// ✅ Initialize EmailJS safely
 emailjs.init(EJ_KEY);
 
 // India states and cities
