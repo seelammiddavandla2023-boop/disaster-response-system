@@ -25,6 +25,9 @@ const EJ_KEY = process.env.REACT_APP_EMAILJS_PUBLIC_KEY;
 // ✅ Initialize EmailJS safely
 emailjs.init(EJ_KEY);
 
+// ✅ Live Railway backend — receives real ESP32 sensor posts
+const SERVER_URL = "https://disaster-response-system-production.up.railway.app/api/sensors";
+
 // India states and cities
 const INDIA = {
   "Andhra Pradesh": ["Visakhapatnam","Vijayawada","Guntur","Tirupati","Kurnool","Nellore"],
@@ -98,6 +101,39 @@ function generateReading(nodeId, forceEvent = null) {
   else if (forceEvent === "flood") { d.waterLevel = rand(88, 100); }
   else if (forceEvent === "earthquake") { d.seismic = rand(5.8, 8.5); }
   return d;
+}
+
+// ── Map real ESP32 payload → app reading format ────────────────────────────
+function mapESP32Reading(raw) {
+  // Temperature: MPU6050 chip temp is ~35-45°C normally.
+  // When flame+smoke detected, derive a realistic fire temperature.
+  const isFireSituation = raw.flameDetected && (raw.mq2Analog > 300 || raw.mq2Digital);
+  const temperature = isFireSituation
+    ? Math.min(65 + (raw.mq2Analog - 300) / 10, 95)
+    : Math.max(22, Math.min(raw.mpuTemp || 35, 55));
+
+  // Water level: ADC 0-4095 → 0-100%
+  const waterLevel = Math.min(((raw.waterADC || 0) / 4095) * 100, 100);
+
+  // Seismic: acceleration delta (g) → approximate Richter scale (×2.2)
+  const seismic = Math.min((raw.seismicDelta || 0) * 2.2, 9.0);
+
+  // Smoke: raw MQ2 ADC value (matches app threshold scale 0-800)
+  const smoke = raw.mq2Analog || 0;
+
+  return {
+    nodeId:          raw.nodeId || "N001",
+    t:               ts(),
+    temperature:     +temperature.toFixed(2),
+    smoke:           +smoke.toFixed(0),
+    waterLevel:      +waterLevel.toFixed(2),
+    seismic:         +seismic.toFixed(2),
+    networkDelay:    rand(2, 30),   // overwritten with real fetch time below
+    processingDelay: rand(1, 15),
+    flameDetected:   raw.flameDetected || false,
+    distanceCM:      raw.distanceCM || 999,
+    gyroMax:         raw.gyroMax || 0,
+  };
 }
 
 function latencyTier(nd, pd) {
@@ -1171,35 +1207,100 @@ export default function App() {
 
   useEffect(() => {
     if (!authUser) return;
-    log("OK", "System initialized. IoT simulation running.");
+    log("OK", "System initialized. Connecting to live IoT backend...");
     log("INFO", "Authenticated: " + profile.name + " (" + profile.role + ")");
-    const iv = setInterval(() => {
-      tick.current++;
-      const ev = simRef.current; if (ev) simRef.current = null;
-      const nodeId = SENSOR_NODES[tick.current % SENSOR_NODES.length].id;
-      const r = generateReading(nodeId, ev);
-      const lt = latencyTier(r.networkDelay, r.processingDelay);
+    log("INFO", "Endpoint → " + SERVER_URL);
+
+    // ── Shared reading processor (used by both live & fallback) ──────────────
+    const processReading = (r, lt) => {
       const newA = detectAlerts(r).map(a => ({ ...a, tier: lt.tier }));
       setReadings(p => [...p.slice(-240), r]);
-      setLatHist(p => [...p.slice(-120), { t: ts(), network: r.networkDelay, processing: r.processingDelay, total: r.networkDelay + r.processingDelay, edge: rand(5, 14), fog: rand(16, 49) }]);
+      setLatHist(p => [...p.slice(-120), {
+        t: ts(), network: r.networkDelay, processing: r.processingDelay,
+        total: r.networkDelay + r.processingDelay,
+        edge: rand(5, 14), fog: rand(16, 49),
+      }]);
       if (newA.length) {
         setAlerts(p => [...newA, ...p].slice(0, 500));
         newA.forEach(a => {
-          log(a.severity === "Critical" ? "CRIT" : "WARN", a.type + " [" + a.severity + "] " + a.nodeId + " · " + a.sensor + "=" + a.value.toFixed(1));
+          log(a.severity === "Critical" ? "CRIT" : "WARN",
+            a.type + " [" + a.severity + "] " + a.nodeId + " · " + a.sensor + "=" + a.value.toFixed(1));
           if (a.severity === "Critical" && authUser?.email) {
             const key = a.type;
             const now2 = Date.now();
             if (!emailCooldown.current[key] || now2 - emailCooldown.current[key] > 120000) {
               emailCooldown.current[key] = now2;
-              emailjs.send(EJ_SVC, EJ_TPL, { to_email: authUser.email, to_name: profile.name || "User", alert_type: a.type, severity: a.severity, location: profile.location || "India", sensor: a.sensor, value: a.value.toFixed(2), time: a.time })
+              emailjs.send(EJ_SVC, EJ_TPL, {
+                to_email: authUser.email, to_name: profile.name || "User",
+                alert_type: a.type, severity: a.severity,
+                location: profile.location || "India",
+                sensor: a.sensor, value: a.value.toFixed(2), time: a.time,
+              })
                 .then(() => { showToast("📧 Alert email sent to " + authUser.email); log("OK", "Email sent → " + authUser.email + " (" + a.type + ")"); })
                 .catch(() => log("WARN", "Email send failed — check EmailJS config"));
             }
           }
         });
-      } else if (tick.current % 6 === 0) log("INFO", nodeId + ": all normal. " + lt.tier + " @ " + lt.latency.toFixed(1) + "ms");
-      if (tick.current % 22 === 0) { const off = Math.random() < 0.1; setCloudOff(off); if (off) log("WARN", "Cloud layer offline — edge fallback active."); }
+      } else if (tick.current % 6 === 0) {
+        log("INFO", r.nodeId + ": all normal. " + lt.tier + " @ " + lt.latency.toFixed(1) + "ms");
+      }
+    };
+
+    const iv = setInterval(async () => {
+      tick.current++;
+
+      // ── Simulation override — Fire / Flood / Quake demo buttons ─────────
+      const ev = simRef.current; if (ev) simRef.current = null;
+      if (ev) {
+        const nodeId = SENSOR_NODES[tick.current % SENSOR_NODES.length].id;
+        const r = generateReading(nodeId, ev);
+        const lt = latencyTier(r.networkDelay, r.processingDelay);
+        processReading(r, lt);
+        return;
+      }
+
+      // ── Live fetch from Railway backend ──────────────────────────────────
+      try {
+        const t0 = Date.now();
+        const res = await fetch(SERVER_URL);
+        const fetchMs = Date.now() - t0;
+
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const json = await res.json();
+
+        // Normalise response: array / single object / {data:[...]}
+        const raw = Array.isArray(json)
+          ? json
+          : json.data && Array.isArray(json.data)
+          ? json.data
+          : [json];
+
+        if (!raw.length || !raw[0]) throw new Error("Empty payload");
+
+        raw.forEach(item => {
+          const r = mapESP32Reading(item);
+          // Use actual HTTP round-trip as real latency
+          r.networkDelay    = +(fetchMs * 0.6).toFixed(1);
+          r.processingDelay = +(fetchMs * 0.4).toFixed(1);
+          const lt = latencyTier(r.networkDelay, r.processingDelay);
+          processReading(r, lt);
+        });
+
+        setCloudOff(false);
+        if (tick.current % 22 === 0) log("INFO", "API healthy · " + fetchMs + "ms round-trip");
+
+      } catch (err) {
+        // ── Fallback to local simulation when API is unreachable ─────────
+        log("WARN", "API unreachable (" + err.message + ") — simulated fallback active");
+        const nodeId = SENSOR_NODES[tick.current % SENSOR_NODES.length].id;
+        const r = generateReading(nodeId, null);
+        const lt = latencyTier(r.networkDelay, r.processingDelay);
+        processReading(r, lt);
+        if (tick.current % 22 === 0) setCloudOff(true);
+      }
+
     }, 2000);
+
     return () => clearInterval(iv);
   }, [authUser, log, showToast, profile]);
 
